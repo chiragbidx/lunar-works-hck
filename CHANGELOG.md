@@ -20,3 +20,15 @@
 - Each feature includes page.tsx (server entry/guard), client.tsx (interactive UI, empty/guidance state), and actions.tsx (server action stub).
 - Sidebar navigation now covers all MailFlux email marketing flows.
 - Ready to wire up DB-backed CRUD after campaign/audience/template schema/migrations.
+
+## 2024-06-11 MailFlux DB Schema
+
+- Added new Drizzle schema tables for MailFlux email marketing core:
+  - `audience_lists` (team-scoped, unique name per team)
+  - `contacts` (linked to audience list, unique email per list)
+  - `templates` (team-scoped, unique name per team, stores content)
+  - `campaigns` (team-scoped, name, subject, links to template, schedule/status)
+  - `campaign_deliveries` (tracks per-contact send state: delivered, opened, bounced, unsubscribed)
+  - `campaign_stats` (summary stats per campaign: delivered, opened, clicked, bounced, unsubscribed)
+- All relationships and constraints for multi-tenant, segmentable campaign management included.
+- Next: Generate and run Drizzle migration for new schema, then wire up CRUD for features.
