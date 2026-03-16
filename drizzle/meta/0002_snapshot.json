@@ -1,0 +1,22 @@
+{
+  "tables": [
+    "users",
+    "teams",
+    "team_members",
+    "team_invitations",
+    "feature_items",
+    "audience_lists",
+    "contacts",
+    "templates",
+    "campaigns",
+    "campaign_deliveries",
+    "campaign_stats"
+  ],
+  "uniqueIndexes": [
+    "team_members_team_user_idx",
+    "audience_lists_team_name_idx",
+    "contacts_list_email_idx",
+    "templates_team_name_idx",
+    "campaigns_team_name_idx"
+  ]
+}
