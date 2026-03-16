@@ -13,4 +13,10 @@
 - All UI elements, labels, and empty/success states now reference MailFlux.
 - Contact email updated to hi@chirag.co for all support links/CTAs.
 
-Next steps: Scaffold new dashboard feature directories & database schema for campaigns, audience lists, templates, and reporting.
+## 2024-06-11 MailFlux Feature Scaffold
+
+- Added new dashboard feature directories for Campaigns, Audience Lists, Templates, and Reports.
+- Scaffolded Next.js routes for each: `/dashboard/campaigns`, `/dashboard/audience-lists`, `/dashboard/templates`, `/dashboard/reports`.
+- Each feature includes page.tsx (server entry/guard), client.tsx (interactive UI, empty/guidance state), and actions.tsx (server action stub).
+- Sidebar navigation now covers all MailFlux email marketing flows.
+- Ready to wire up DB-backed CRUD after campaign/audience/template schema/migrations.
