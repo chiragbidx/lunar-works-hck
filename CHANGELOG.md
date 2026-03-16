@@ -45,3 +45,9 @@
   - Fetches campaign list, passes to client for UI list, add, edit, and delete dialogs
   - Full error/success/empty states surfaced in UI
 - Ready for campaign extension: add audience selection, template association, schedule/send workflows next.
+
+## 2024-06-11 Bugfix: Await searchParams for Campaigns Page
+
+- Fixed Next.js contract for `/dashboard/campaigns/page.tsx` to properly `await searchParams` before reading status/message query params.
+- This resolves runtime error where `searchParams` was a Promise (App Router convention) and must be unwrapped before destructure.
+- All campaign CRUD actions and error/success flows now correctly surface query params to the dashboard UI.
