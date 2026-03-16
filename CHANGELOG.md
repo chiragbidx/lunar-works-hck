@@ -32,3 +32,16 @@
   - `campaign_stats` (summary stats per campaign: delivered, opened, clicked, bounced, unsubscribed)
 - All relationships and constraints for multi-tenant, segmentable campaign management included.
 - Next: Generate and run Drizzle migration for new schema, then wire up CRUD for features.
+
+## 2024-06-11 MailFlux Campaign CRUD
+
+- Implemented backend server actions for Campaigns:
+  - createCampaignAction: validates unique name/schedule, checks permissions, inserts new campaign
+  - updateCampaignAction: prevents edits after sent/failed, enforces duplicate protection, updates fields
+  - deleteCampaignAction: prevents deleting sent/failed campaigns, cascades via DB
+  - listCampaignsAction: fetches/serializes all campaigns for user's team
+  - getCampaignByIdAction: returns single campaign details for view/edit
+- Wired up campaign CRUD flow to `/dashboard/campaigns/page.tsx` and client interface:
+  - Fetches campaign list, passes to client for UI list, add, edit, and delete dialogs
+  - Full error/success/empty states surfaced in UI
+- Ready for campaign extension: add audience selection, template association, schedule/send workflows next.
