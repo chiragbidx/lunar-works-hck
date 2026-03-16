@@ -1,5 +1,7 @@
-import { pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uniqueIndex, boolean, integer } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+
+// --- Core User & Team Models (existing) ---
 
 export const users = pgTable("users", {
   id: text("id")
@@ -94,4 +96,142 @@ export const featureItems = pgTable("feature_items", {
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
+});
+
+// --- MailFlux Core: Campaigns, Audiences, Templates, Delivery/Stats ---
+
+export const audienceLists = pgTable(
+  "audience_lists",
+  {
+    id: text("id")
+      .notNull()
+      .default(sql`gen_random_uuid()`)
+      .primaryKey(),
+    teamId: text("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("audience_lists_team_name_idx").on(table.teamId, table.name),
+  ]
+);
+
+export const templates = pgTable(
+  "templates",
+  {
+    id: text("id")
+      .notNull()
+      .default(sql`gen_random_uuid()`)
+      .primaryKey(),
+    teamId: text("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    content: text("content").notNull(), // Could be HTML/RichText/etc.
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("templates_team_name_idx").on(table.teamId, table.name),
+  ]
+);
+
+export const contacts = pgTable(
+  "contacts",
+  {
+    id: text("id")
+      .notNull()
+      .default(sql`gen_random_uuid()`)
+      .primaryKey(),
+    audienceListId: text("audience_list_id")
+      .notNull()
+      .references(() => audienceLists.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    name: text("name"),
+    tags: text("tags"),
+    unsubscribed: boolean("unsubscribed").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("contacts_list_email_idx").on(table.audienceListId, table.email),
+  ]
+);
+
+export const campaigns = pgTable(
+  "campaigns",
+  {
+    id: text("id")
+      .notNull()
+      .default(sql`gen_random_uuid()`)
+      .primaryKey(),
+    teamId: text("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    subject: text("subject").notNull(),
+    templateId: text("template_id")
+      .references(() => templates.id, { onDelete: "set null" }),
+    scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
+    status: text("status").notNull().default("draft"), // draft/scheduled/sending/sent/failed
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("campaigns_team_name_idx").on(table.teamId, table.name),
+  ]
+);
+
+export const campaignDeliveries = pgTable("campaign_deliveries", {
+  id: text("id")
+    .notNull()
+    .default(sql`gen_random_uuid()`)
+    .primaryKey(),
+  campaignId: text("campaign_id")
+    .notNull()
+    .references(() => campaigns.id, { onDelete: "cascade" }),
+  contactId: text("contact_id")
+    .notNull()
+    .references(() => contacts.id, { onDelete: "cascade" }),
+  status: text("status").notNull(), // queued/sent/bounced/unsubscribed/failed
+  deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+  openedAt: timestamp("opened_at", { withTimezone: true }),
+  clickedAt: timestamp("clicked_at", { withTimezone: true }),
+  bouncedAt: timestamp("bounced_at", { withTimezone: true }),
+  unsubscribedAt: timestamp("unsubscribed_at", { withTimezone: true }),
+});
+
+export const campaignStats = pgTable("campaign_stats", {
+  id: text("id")
+    .notNull()
+    .default(sql`gen_random_uuid()`)
+    .primaryKey(),
+  campaignId: text("campaign_id")
+    .notNull()
+    .references(() => campaigns.id, { onDelete: "cascade" }),
+  totalDelivered: integer("total_delivered").notNull().default(0),
+  opened: integer("opened").notNull().default(0),
+  clicked: integer("clicked").notNull().default(0),
+  bounced: integer("bounced").notNull().default(0),
+  unsubscribed: integer("unsubscribed").notNull().default(0),
 });
