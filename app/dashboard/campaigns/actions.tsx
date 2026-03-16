@@ -7,18 +7,25 @@ import { getAuthSession } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
 import { campaigns, templates, teams, teamMembers } from "@/lib/db/schema";
 
+// Accepts "", null, or browser datetime-local (YYYY-MM-DDTHH:mm) and validates as local/future.
+const scheduledAtSchema = z
+  .string()
+  .optional()
+  .refine(
+    val => {
+      if (!val || val === "") return true; // Allow blank/unscheduled
+      const maybeDate = new Date(val);
+      return !isNaN(maybeDate.getTime());
+    },
+    { message: "Invalid date" }
+  );
+
 // Zod schema for campaign creation/updating
 const createCampaignSchema = z.object({
   name: z.string().min(2, "Campaign name is required.").max(64, "Campaign name too long."),
   subject: z.string().min(2, "Subject is required."),
   templateId: z.string().nullable().optional(), // can be null
-  scheduledAt: z
-    .union([
-      z.string().datetime({ message: "Invalid date" }),
-      z.literal("").transform(() => undefined),
-      z.undefined(),
-    ])
-    .optional(),
+  scheduledAt: scheduledAtSchema,
 });
 
 const updateCampaignSchema = createCampaignSchema.extend({
@@ -30,7 +37,6 @@ const deleteCampaignSchema = z.object({
   id: z.string().min(1, "Missing campaign id."),
 });
 
-// Utility: Require that the current user is a team member and (admin or owner).
 async function requireTeamManageRole(userId: string) {
   const [membership] = await db
     .select({ teamId: teamMembers.teamId, role: teamMembers.role })
@@ -51,11 +57,12 @@ export async function createCampaignAction(formData: FormData) {
   if (!session) redirect("/auth#signin");
 
   const teamId = await requireTeamManageRole(session.userId);
+  const rawScheduledAt = (formData.get("scheduledAt") ?? "") as string;
   const parsed = createCampaignSchema.safeParse({
     name: formData.get("name"),
     subject: formData.get("subject"),
     templateId: formData.get("templateId"),
-    scheduledAt: formData.get("scheduledAt"),
+    scheduledAt: rawScheduledAt,
   });
 
   if (!parsed.success) {
@@ -77,9 +84,14 @@ export async function createCampaignAction(formData: FormData) {
     redirect(`/dashboard/campaigns?status=error&message=This campaign name is already used.`);
   }
 
-  // Validate that scheduled date is in the future (if provided)
-  if (parsed.data.scheduledAt) {
-    if (new Date(parsed.data.scheduledAt) < new Date()) {
+  let scheduledAtDate: Date | null = null;
+  if (parsed.data.scheduledAt && parsed.data.scheduledAt !== "") {
+    scheduledAtDate = new Date(parsed.data.scheduledAt);
+    // Defensive: ensure scheduled time is in the future if provided
+    if (isNaN(scheduledAtDate.getTime())) {
+      redirect(`/dashboard/campaigns?status=error&message=Invalid datetime for schedule.`);
+    }
+    if (scheduledAtDate < new Date()) {
       redirect(`/dashboard/campaigns?status=error&message=Scheduled time cannot be in the past.`);
     }
   }
@@ -101,7 +113,7 @@ export async function createCampaignAction(formData: FormData) {
     name: parsed.data.name,
     subject: parsed.data.subject,
     templateId: parsed.data.templateId || null,
-    scheduledAt: parsed.data.scheduledAt ? new Date(parsed.data.scheduledAt) : null,
+    scheduledAt: scheduledAtDate,
     status: "draft",
     updatedAt: new Date(),
   });
@@ -115,12 +127,13 @@ export async function updateCampaignAction(formData: FormData) {
   if (!session) redirect("/auth#signin");
 
   const teamId = await requireTeamManageRole(session.userId);
+  const rawScheduledAt = (formData.get("scheduledAt") ?? "") as string;
   const parsed = updateCampaignSchema.safeParse({
     id: formData.get("id"),
     name: formData.get("name"),
     subject: formData.get("subject"),
     templateId: formData.get("templateId"),
-    scheduledAt: formData.get("scheduledAt"),
+    scheduledAt: rawScheduledAt,
     status: formData.get("status"),
   });
 
@@ -158,8 +171,13 @@ export async function updateCampaignAction(formData: FormData) {
     }
   }
 
-  if (parsed.data.scheduledAt) {
-    if (new Date(parsed.data.scheduledAt) < new Date()) {
+  let scheduledAtDate: Date | null = null;
+  if (parsed.data.scheduledAt && parsed.data.scheduledAt !== "") {
+    scheduledAtDate = new Date(parsed.data.scheduledAt);
+    if (isNaN(scheduledAtDate.getTime())) {
+      redirect(`/dashboard/campaigns?status=error&message=Invalid datetime for schedule.`);
+    }
+    if (scheduledAtDate < new Date()) {
       redirect(`/dashboard/campaigns?status=error&message=Scheduled time cannot be in the past.`);
     }
   }
@@ -170,7 +188,7 @@ export async function updateCampaignAction(formData: FormData) {
       name: parsed.data.name,
       subject: parsed.data.subject,
       templateId: parsed.data.templateId || null,
-      scheduledAt: parsed.data.scheduledAt ? new Date(parsed.data.scheduledAt) : null,
+      scheduledAt: scheduledAtDate,
       status: parsed.data.status || camp.status,
       updatedAt: new Date(),
     })
@@ -219,7 +237,6 @@ export async function deleteCampaignAction(formData: FormData) {
 
 // LIST ALL FOR TEAM
 export async function listCampaignsAction(userId: string) {
-  // Returns all campaigns for the user's team. Members get read-only.
   const [membership] = await db
     .select({ teamId: teamMembers.teamId, role: teamMembers.role })
     .from(teamMembers)
@@ -241,7 +258,6 @@ export async function listCampaignsAction(userId: string) {
     .from(campaigns)
     .where(eq(campaigns.teamId, membership.teamId));
 
-  // Convert dates to ISO for serializability
   return data.map((d) => ({
     ...d,
     updatedAt: d.updatedAt?.toISOString() ?? null,
