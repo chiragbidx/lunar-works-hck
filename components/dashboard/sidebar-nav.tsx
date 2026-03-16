@@ -10,6 +10,10 @@ import {
   Settings,
   Users,
   CreditCard,
+  Mail,
+  List,
+  Layout,
+  BarChart
 } from "lucide-react";
 import {
   Collapsible,
@@ -28,12 +32,11 @@ const sections: { title: string; items: NavItem[] }[] = [
   {
     title: "Platform",
     items: [
+      { label: "Campaigns", href: "/dashboard/campaigns", icon: Mail },
+      { label: "Audience Lists", href: "/dashboard/audience-lists", icon: List },
+      { label: "Templates", href: "/dashboard/templates", icon: Layout },
+      { label: "Reporting", href: "/dashboard/reports", icon: BarChart },
       { label: "Overview", href: "/dashboard", icon: Home },
-      {
-        label: "Feature",
-        href: "/dashboard/feature",
-        icon: Hammer,
-      },
     ],
   },
   {
